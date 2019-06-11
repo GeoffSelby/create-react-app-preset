@@ -1,0 +1,118 @@
+const chalk = require('chalk');
+const fs = require('fs-extra');
+const path = require('path');
+const request = require('request');
+const extract = require('extract-zip');
+
+module.exports = {
+  new(directory, options) {
+    const zipFile = `https://github.com/${options.preset}/archive/${options.branch}.zip`;
+    const appDirectory = path.resolve(process.cwd(), directory);
+    const temporaryDirectory = fs.mkdtempSync(appDirectory);
+    const tempExtractDirectory = fs.mkdtempSync(temporaryDirectory);
+    const tempZip = path.resolve(temporaryDirectory, 'template.zip');
+    const file = fs.createWriteStream(tempZip);
+
+    console.log(chalk.blue('Thanks for using CRAP!'));
+    console.log(' ');
+    console.log(chalk.blue(`Creating new directory: ${directory}`));
+
+    fs.mkdirSync(appDirectory);
+
+    console.log(
+      chalk.yellow(
+        `Downloading ${options.preset} from ${options.branch} branch. This may take a while.`,
+      ),
+    );
+
+    this.download(zipFile, file);
+
+    file.on('finish', () => {
+      file.close(() => {
+        let source;
+
+        console.log(chalk.blue('Extracting preset...'));
+
+        extract(
+          tempZip,
+          {
+            dir: tempExtractDirectory,
+            onEntry: (entry) => {
+              if (entry.fileName.endsWith('package.json')) {
+                source = path.resolve(tempExtractDirectory, path.dirname(entry.fileName));
+              }
+            },
+          },
+          (err) => {
+            if (err) {
+              console.log(chalk.red(`Oops. We were unable to extract ${zipFile}`));
+              process.exit(1);
+            }
+
+            console.log(chalk.blue(`Configuring ${directory}. You're almost done!`));
+
+            this.configureApp(
+              source,
+              appDirectory,
+              directory,
+              temporaryDirectory,
+              tempExtractDirectory,
+              options.preset,
+            );
+          },
+        );
+      });
+    });
+  },
+
+  download(zipFile, file) {
+    request
+      .get(zipFile)
+      .on('error', (err) => {
+        console.log(err);
+        process.exit(1);
+      })
+      .pipe(file);
+  },
+
+  configureApp(source, destination, directory, temporaryDirectory, tempExtractDirectory, preset) {
+    fs.copy(source, destination, (err) => {
+      if (err) {
+        console.log(err);
+        process.exit(1);
+      }
+
+      this.wipeUp(directory, destination, temporaryDirectory, tempExtractDirectory, preset);
+    });
+  },
+
+  wipeUp(directory, appDirectory, temporaryDirectory, tempExtractDirectory, preset) {
+    const postInstall = path.resolve(appDirectory, 'postInstall.txt');
+    console.log(' ');
+    fs.readFile(postInstall, 'utf-8', (err, contents) => {
+      if (err) {
+        return;
+      }
+      console.log(chalk.yellow(`A message from ${preset.split('/')[0]}: `));
+      console.log(contents);
+      fs.remove(postInstall);
+    });
+
+    console.log(chalk.green(`Successfully installed ${preset} in ${appDirectory}!`));
+    console.log(' ');
+    console.log(chalk.blue('Run the following commands to finish:'));
+    console.log(chalk.yellow(`  cd ${directory}`));
+    console.log(chalk.yellow('  yarn'));
+
+    this.removeTemporaryDirectories(temporaryDirectory, tempExtractDirectory);
+  },
+
+  removeTemporaryDirectories(temporaryDirectory, tempExtractDirectory) {
+    if (temporaryDirectory) {
+      fs.removeSync(temporaryDirectory);
+    }
+    if (tempExtractDirectory) {
+      fs.removeSync(tempExtractDirectory);
+    }
+  },
+};
