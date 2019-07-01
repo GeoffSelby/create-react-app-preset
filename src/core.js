@@ -6,7 +6,9 @@ const extract = require('extract-zip');
 
 module.exports = {
   new(directory, options) {
-    const zipFile = `https://github.com/${options.preset}/archive/${options.branch}.zip`;
+    const zipFile = `https://github.com/${options.preset}/archive/${
+      options.branch
+    }.zip`;
     const appDirectory = path.resolve(process.cwd(), directory);
     const temporaryDirectory = fs.mkdtempSync(appDirectory);
     const tempExtractDirectory = fs.mkdtempSync(temporaryDirectory);
@@ -21,7 +23,9 @@ module.exports = {
 
     console.log(
       chalk.yellow(
-        `Downloading ${options.preset} from ${options.branch} branch. This may take a while.`,
+        `Downloading ${options.preset} from ${
+          options.branch
+        } branch. This may take a while.`,
       ),
     );
 
@@ -37,28 +41,38 @@ module.exports = {
           tempZip,
           {
             dir: tempExtractDirectory,
-            onEntry: (entry) => {
+            onEntry: entry => {
               if (entry.fileName.endsWith('package.json')) {
-                source = path.resolve(tempExtractDirectory, path.dirname(entry.fileName));
+                source = path.resolve(
+                  tempExtractDirectory,
+                  path.dirname(entry.fileName),
+                );
               }
             },
           },
-          (err) => {
+          async err => {
             if (err) {
-              console.log(chalk.red(`Oops. We were unable to extract ${zipFile}`));
+              console.log(
+                chalk.red(`Oops. We were unable to extract ${zipFile}`),
+              );
               process.exit(1);
             }
 
-            console.log(chalk.blue(`Configuring ${directory}. You're almost done!`));
+            console.log(
+              chalk.blue(`Configuring ${directory}. You're almost done!`),
+            );
 
-            this.configureApp(
-              source,
-              appDirectory,
+            await this.configureApp(source, appDirectory);
+
+            await this.postInstall(
               directory,
+              appDirectory,
               temporaryDirectory,
               tempExtractDirectory,
               options.preset,
             );
+
+            this.wipeUp(temporaryDirectory, tempExtractDirectory);
           },
         );
       });
@@ -68,46 +82,52 @@ module.exports = {
   download(zipFile, file) {
     request
       .get(zipFile)
-      .on('error', (err) => {
+      .on('error', err => {
         console.log(err);
         process.exit(1);
       })
       .pipe(file);
   },
 
-  configureApp(source, destination, directory, temporaryDirectory, tempExtractDirectory, preset) {
-    fs.copy(source, destination, (err) => {
-      if (err) {
-        console.log(err);
-        process.exit(1);
-      }
+  configureApp(source, destination) {
+    return new Promise((resolve, reject) => {
+      fs.copy(source, destination, err => {
+        if (err) {
+          console.log(err);
+          process.exit(1);
+        }
 
-      this.wipeUp(directory, destination, temporaryDirectory, tempExtractDirectory, preset);
+        resolve();
+      });
     });
   },
 
-  wipeUp(directory, appDirectory, temporaryDirectory, tempExtractDirectory, preset) {
-    const postInstall = path.resolve(appDirectory, 'postInstall.txt');
-    console.log(' ');
-    fs.readFile(postInstall, 'utf-8', (err, contents) => {
-      if (err) {
-        return;
-      }
-      console.log(chalk.yellow(`A message from ${preset.split('/')[0]}: `));
-      console.log(contents);
-      fs.remove(postInstall);
+  postInstall(directory, appDirectory, preset) {
+    return new Promise((resolve, reject) => {
+      const postInstall = path.resolve(appDirectory, 'postInstall.txt');
+      console.log(' ');
+      fs.readFile(postInstall, 'utf-8', (err, contents) => {
+        if (err) {
+          return;
+        }
+        console.log(chalk.yellow(`A message from ${preset.split('/')[0]}: `));
+        console.log(contents);
+        fs.remove(postInstall);
+      });
+
+      console.log(
+        chalk.green(`Successfully installed ${preset} in ${appDirectory}!`),
+      );
+      console.log(' ');
+      console.log(chalk.blue('Run the following commands to finish:'));
+      console.log(chalk.yellow(`  cd ${directory}`));
+      console.log(chalk.yellow('  yarn'));
+
+      resolve();
     });
-
-    console.log(chalk.green(`Successfully installed ${preset} in ${appDirectory}!`));
-    console.log(' ');
-    console.log(chalk.blue('Run the following commands to finish:'));
-    console.log(chalk.yellow(`  cd ${directory}`));
-    console.log(chalk.yellow('  yarn'));
-
-    this.removeTemporaryDirectories(temporaryDirectory, tempExtractDirectory);
   },
 
-  removeTemporaryDirectories(temporaryDirectory, tempExtractDirectory) {
+  wipeUp(temporaryDirectory, tempExtractDirectory) {
     if (temporaryDirectory) {
       fs.removeSync(temporaryDirectory);
     }
