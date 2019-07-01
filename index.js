@@ -4,7 +4,7 @@ const program = require('commander');
 const Crap = require('./src/core');
 
 program
-  .version('0.0.2')
+  .version('0.0.1')
   .description(
     'Simple create-react-app applications built from custom presets',
   );
