@@ -3,12 +3,38 @@ const fs = require('fs-extra');
 const path = require('path');
 const request = require('request');
 const extract = require('extract-zip');
+const inquirer = require('inquirer');
+const spawn = require('child_process').spawnSync;
 
 module.exports = {
-  new(directory, options) {
-    const zipFile = `https://github.com/${options.preset}/archive/${
-      options.branch
-    }.zip`;
+  async new(directory, options) {
+    let presetRepo;
+
+    const answers = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'presetType',
+        message: 'Which preset would you like to use?',
+        choices: ['Tailwind', 'Bootstrap', 'Material UI', 'Custom'],
+      },
+    ]);
+
+    if (answers.presetType === 'Custom') {
+      const answer = await inquirer.prompt([
+        {
+          name: 'repo',
+          message: 'GitHub user/repo of custom preset:',
+          default: 'GeoffSelby/tailwind-crap-preset',
+        },
+      ]);
+
+      presetRepo = answer.repo;
+    } else {
+      const preset = answers.presetType.replace(/\s+/g, '').toLowerCase();
+      presetRepo = `GeoffSelby/${preset}-crap-preset`;
+    }
+
+    const zipFile = `https://github.com/${presetRepo}/archive/master.zip`;
     const appDirectory = path.resolve(process.cwd(), directory);
     const temporaryDirectory = fs.mkdtempSync(appDirectory);
     const tempExtractDirectory = fs.mkdtempSync(temporaryDirectory);
@@ -22,11 +48,7 @@ module.exports = {
     fs.mkdirSync(appDirectory);
 
     console.log(
-      chalk.yellow(
-        `Downloading ${options.preset} from ${
-          options.branch
-        } branch. This may take a while.`,
-      ),
+      chalk.yellow(`Downloading ${presetRepo}. This may take a while.`),
     );
 
     this.download(zipFile, file);
@@ -35,7 +57,7 @@ module.exports = {
       file.close(() => {
         let source;
 
-        console.log(chalk.blue('Extracting preset...'));
+        console.log(chalk.blue('Extracting...'));
 
         extract(
           tempZip,
@@ -64,13 +86,14 @@ module.exports = {
 
             await this.configureApp(source, appDirectory);
 
-            await this.postInstall(
-              directory,
-              appDirectory,
-              temporaryDirectory,
-              tempExtractDirectory,
-              options.preset,
-            );
+            console.log(chalk.blue('Installing dependencies. Sit tight...'));
+
+            spawn(`cd ${appDirectory} && yarn`, [], {
+              shell: true,
+              stdio: 'inherit',
+            });
+
+            await this.postInstall(directory, appDirectory, presetRepo);
 
             this.wipeUp(temporaryDirectory, tempExtractDirectory);
           },
@@ -102,7 +125,7 @@ module.exports = {
     });
   },
 
-  postInstall(directory, appDirectory, preset) {
+  postInstall(directory, appDirectory, presetRepo) {
     return new Promise((resolve, reject) => {
       const postInstall = path.resolve(appDirectory, 'postInstall.txt');
       console.log(' ');
@@ -110,18 +133,20 @@ module.exports = {
         if (err) {
           return;
         }
-        console.log(chalk.yellow(`A message from ${preset.split('/')[0]}: `));
+        console.log(
+          chalk.yellow(`A message from ${presetRepo.split('/')[0]}: `),
+        );
         console.log(contents);
         fs.remove(postInstall);
       });
 
       console.log(
-        chalk.green(`Successfully installed ${preset} in ${appDirectory}!`),
+        chalk.green(`Successfully installed ${presetRepo} in ${appDirectory}!`),
       );
       console.log(' ');
-      console.log(chalk.blue('Run the following commands to finish:'));
+      console.log(chalk.blue('Run the following commands to get started:'));
       console.log(chalk.yellow(`  cd ${directory}`));
-      console.log(chalk.yellow('  yarn'));
+      console.log(chalk.yellow('  yarn start'));
 
       resolve();
     });
