@@ -1,32 +1,28 @@
 # Create React App Preset
 
-CRAP for short.
+> CRAP for short.
 
-Use a custom preset/starter template when setting up a new app with create-react-app.
+Scaffold Create React App projects using pre-configured templates.
 
-## Installation
-
-Make sure you have create-react-app installed globally...
+## Usage
 
 ```bash
-npm install -g create-react-app
+npx crap new my-app
 ```
 
-Then, install CRAP globally.
+Follow the prompt and you are good to go.
 
-```bash
-npm install -g create-react-app-preset
-```
+## Presets
 
-## Start a new app
+Currently, there are two preset options, **Tailwind CSS** and **Custom**.
 
-```bash
-crap new my-app -p Username/Repo
-```
+### Tailwind Preset
 
-This scaffolds a new application called `my-app` using to specified GitHub repository as the preset.
+The [Tailwind Css preset](https://github.com/GeoffSelby/tailwind-crap-preset) scaffolds a CRA project with Tailwind pre-configured with the help of [craco](https://github.com/sharegate/craco).
 
-> You may choose the branch to use by passing it with the `-b` or `--branch` flag.
+### Custom Preset
+
+The custom preset option allows you to use your own CRA templates by including the GitHub username/repo of the template. For example: If your custom CRA template is at `github.com/JohnDoe/CRA-template`, you would pass `JohnDoe/CRA-template` when asked by CRAP. At this time, the template must be a public GitHub repo.
 
 ## Creating custom presets/starter templates
 
@@ -36,7 +32,7 @@ Make sure the `build` and `node_modules` directories are in your `.gitignore` fi
 
 ### Post Install Messages
 
-You may want to include a post install message for your users in order to provide additional instructions or information. This could be a good time to provide links to Patreon or GitHub Sponsorships. Whatever you need to relay to the user, really. Don't worry, we remind the user to install project dependencies for you.
+You may want to include a post install message for your users in order to provide additional instructions or information. This could be a good time to provide links to Patreon or GitHub Sponsorships. Whatever you need to relay to the user, really.
 
 To include a post install message, add `postInstall.txt` to the root of your preset. In this file you can include your message.
 
