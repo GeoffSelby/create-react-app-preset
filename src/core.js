@@ -15,7 +15,7 @@ module.exports = {
         type: 'list',
         name: 'presetType',
         message: 'Which preset would you like to use?',
-        choices: ['Tailwind', 'Bootstrap', 'Material UI', 'Custom'],
+        choices: ['Tailwind', 'Custom'],
       },
     ]);
 
