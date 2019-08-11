@@ -1,6 +1,6 @@
 {
   "name": "create-react-app-preset",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Simple create-react-app applications built from custom presets",
   "main": "index.js",
   "bin": {
